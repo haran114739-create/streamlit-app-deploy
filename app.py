@@ -46,7 +46,8 @@ def query_llm(input_text: str, role_key: str) -> str:
             ],
             temperature=0.2,
         )
-        # 応答抽出（安全に）
+
+        # 応答取り出し（SDK の返却形式に合わせて安全に処理）
         try:
             return resp.choices[0].message['content'].strip()
         except Exception:
