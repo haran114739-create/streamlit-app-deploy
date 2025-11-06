@@ -7,7 +7,7 @@ from openai import OpenAI
 
 st.set_page_config(page_title="Streamlit LLM アプリ", layout="centered")
 
-st.title("Streamlit + LangChain LLM アプリ (OpenAI client 実装)")
+st.title("Streamlit + OpenAI LLM アプリ")
 st.write("入力したテキストを選んだ専門家として LLM に回答させます。")
 st.markdown(
     "- ローカル実行: プロジェクト直下に `.env` を作り `OPENAI_API_KEY=sk-...` を設定してください。\n"
@@ -20,14 +20,8 @@ if not OPENAI_KEY:
     st.warning("環境変数 OPENAI_API_KEY が見つかりません。`.env` またはデプロイ先のシークレットを確認してください。")
 
 EXPERT_OPTIONS = {
-    "セキュリティエンジニア（A）": (
-        "あなたは熟練のセキュリティエンジニアです。セキュリティ設計・脆弱性対応に関して、"
-        "具体的かつ実務的にアドバイスしてください。必要ならコマンドや設定例を示してください。"
-    ),
-    "プロダクトマーケター（B）": (
-        "あなたは経験豊富なプロダクトマーケターです。市場分析、ターゲティング、KPI設計、"
-        "ローンチ施策について実務的に提案してください。"
-    ),
+    "セキュリティエンジニア（A）": "あなたは熟練のセキュリティエンジニアです。具体的かつ実務的にアドバイスしてください。",
+    "プロダクトマーケター（B）": "あなたは経験豊富なプロダクトマーケターです。実務的な施策を提案してください。",
 }
 
 with st.form("form"):
@@ -36,9 +30,6 @@ with st.form("form"):
     submit = st.form_submit_button("送信")
 
 def query_llm(input_text: str, role_key: str) -> str:
-    """
-    LangChain を使わず OpenAI の新しいクライアント(OpenAI(api_key=...))で直接呼ぶ実装。
-    """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return "環境変数 OPENAI_API_KEY が設定されていません。`.env` またはデプロイ先のシークレットを確認してください。"
@@ -55,7 +46,7 @@ def query_llm(input_text: str, role_key: str) -> str:
             ],
             temperature=0.2,
         )
-        # 応答抽出（複数パターンに安全対応）
+        # 応答抽出（安全に）
         try:
             return resp.choices[0].message['content'].strip()
         except Exception:
