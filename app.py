@@ -1,10 +1,6 @@
 import os
 from dotenv import load_dotenv
 
-# ロケール／エンコーディングを確実に UTF-8 に（必要なら）
-os.environ.setdefault("PYTHONUTF8", "1")
-os.environ.setdefault("PYTHONIOENCODING", "utf-8")
-
 # .env を読み込む
 load_dotenv()
 
@@ -46,10 +42,6 @@ def _safe_str(x: object) -> str:
         return str(x)
     except Exception:
         return repr(x)
-    finally:
-        # 保険として UTF-8 にエンコード／デコード（非ASCII を置換）
-        # ここは戻り値で必ず使うこと
-        pass
 
 def _safe_unicode(s: str) -> str:
     if s is None:
