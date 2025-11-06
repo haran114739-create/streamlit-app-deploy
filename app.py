@@ -41,16 +41,29 @@ with st.form("form"):
     user_input = st.text_area("質問または指示を入力してください:", height=180)
     submit = st.form_submit_button("送信")
 
+def _safe_str(x: object) -> str:
+    try:
+        return str(x)
+    except Exception:
+        return repr(x)
+    finally:
+        # 保険として UTF-8 にエンコード／デコード（非ASCII を置換）
+        # ここは戻り値で必ず使うこと
+        pass
+
+def _safe_unicode(s: str) -> str:
+    if s is None:
+        return ""
+    try:
+        return s.encode("utf-8", errors="replace").decode("utf-8")
+    except Exception:
+        return repr(s)
+
 def query_llm(input_text: str, role_key: str) -> str:
-    """
-    入力テキストと選択値を受け取り、まず LangChain を試して LLM に渡す。
-    LangChain が使えない場合は OpenAI Python クライアント（openai>=1.0）へフォールバックする。
-    """
     system_msg = EXPERT_OPTIONS.get(role_key, "")
 
-    # 1) LangChain を試す
+    # 1) LangChain
     try:
-        # LangChain の標準的なチャットラッパーを利用
         from langchain.chat_models import ChatOpenAI
         from langchain.prompts import (
             ChatPromptTemplate,
@@ -65,20 +78,20 @@ def query_llm(input_text: str, role_key: str) -> str:
 
         llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.2)
         chain = LLMChain(llm=llm, prompt=chat_prompt)
-        return chain.run({"user_input": input_text}).strip()
+        res = chain.run({"user_input": input_text})
+        return _safe_unicode(_safe_str(res))
     except Exception:
-        # LangChain 利用不可ならフォールバックへ
         pass
 
-    # 2) openai 新クライアントへフォールバック
+    # 2) OpenAI new client
     try:
         from openai import OpenAI
     except Exception as e:
-        return f"LangChain/OpenAI クライアントのインポートに失敗しました: {e}"
+        return _safe_unicode(f"LangChain/OpenAI import error: {_safe_str(e)}")
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return "環境変数 OPENAI_API_KEY が設定されていません。`.env` またはデプロイ先のシークレットを確認してください。"
+        return "環境変数 OPENAI_API_KEY が設定されていません。`.env` を確認してください。"
 
     try:
         client = OpenAI(api_key=api_key)
@@ -90,23 +103,26 @@ def query_llm(input_text: str, role_key: str) -> str:
             ],
             temperature=0.2,
         )
-        # 応答抽出（複数のレスポンス構造に対応）
+
+        # 応答抽出（安全に取り出して UTF-8 化）
+        content = None
         try:
-            return resp.choices[0].message['content'].strip()
+            content = resp.choices[0].message['content']
         except Exception:
             try:
-                return resp.choices[0].message.content.strip()
+                content = resp.choices[0].message.content
             except Exception:
                 try:
-                    return resp['choices'][0]['message']['content'].strip()
+                    content = resp['choices'][0]['message']['content']
                 except Exception:
                     try:
-                        return resp.choices[0].text.strip()
+                        content = resp.choices[0].text
                     except Exception:
-                        return str(resp).strip()
+                        content = _safe_str(resp)
+
+        return _safe_unicode(_safe_str(content))
     except Exception as e:
-        safe_e = str(e).encode("utf-8", errors="replace").decode("utf-8")
-        return f"OpenAI API 呼び出しでエラーが発生しました: {safe_e}"
+        return _safe_unicode(f"OpenAI API 呼び出しでエラーが発生しました: {_safe_str(e)}")
 
 # 送信後の表示
 if submit:
